@@ -5,11 +5,17 @@ export const apiGet = async (url: string) => {
   return res.json();
 };
 
-export const apiPost = async (url: string, data: any) => {
+export const apiPost = async (
+  url: string,
+  data: FormData | Record<string, unknown>
+) => {
   const res = await fetch(`${BASE_URL}${url}`, {
     method: "POST",
-    body: data,
+    body: data instanceof FormData ? data : JSON.stringify(data),
+    headers:
+      data instanceof FormData ? {} : { "Content-Type": "application/json" },
   });
+
   return res.json();
 };
 

@@ -1,39 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getSubmission, updateSubmission } from "@/src/lib/submissions";
+import { Submission } from "@/src/types/submission";
 import { useRouter } from "next/navigation";
+import {
+  FiArrowLeft,
+  FiUser,
+  FiMail,
+  FiPhone,
+  FiFilePlus,
+  FiEdit2,
+  FiXCircle,
+  FiCheckCircle,
+} from "react-icons/fi";
 
-export default function EditSubmission(props: any) {
+interface EditPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function EditSubmission({ params }: EditPageProps) {
   const router = useRouter();
 
-  const [id, setId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<any>(null);
+  // ✅ unwrap the promise
+  const resolved = React.use(params); // <--- required by Next.js
+  const submissionId = Number(resolved.id);
+
+  const [formData, setFormData] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
 
-  // Fix: params is a Promise, so we must resolve it inside useEffect
   useEffect(() => {
-    async function resolveParams() {
-      const resolved = await props.params; // ← important
-      const parsedId = Number(resolved.id);
-      setId(parsedId);
-
-      const res = await getSubmission(parsedId);
-      setFormData(res.data);
+    async function loadData() {
+      const res = await getSubmission(submissionId);
+      setFormData(res.data as Submission);
     }
 
-    resolveParams();
-  }, [props.params]);
+    loadData();
+  }, [submissionId]);
 
-  // update form fields
-  const handleChange = (e: any) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    if (!formData) return;
+
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
-  // submit update
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!formData) return;
+
     setLoading(true);
+    setSuccess("");
+    setError("");
 
     const fd = new FormData();
     fd.append("name", formData.name);
@@ -41,101 +65,156 @@ export default function EditSubmission(props: any) {
     fd.append("number", formData.number);
     fd.append("message", formData.message);
 
-    // Add new file only if provided
-    if (e.target.document.files[0]) {
-      fd.append("document", e.target.document.files[0]);
+    const fileInput = e.currentTarget.document as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+
+    if (file) {
+      fd.append("document", file);
     }
 
-    const res = await updateSubmission(id!, fd);
+    const res = await updateSubmission(submissionId, fd);
 
-    if (res.success) {
-      alert("Submission updated successfully!");
-      router.push(`/submissions/${id}`);
+    if (!res.success) {
+      setError(res.message || "Something went wrong.");
+    } else {
+      setSuccess("Submission updated successfully!");
+      setTimeout(() => {
+        router.push(`/submissions/${submissionId}`);
+      }, 1200);
     }
 
     setLoading(false);
   };
 
-  if (id === null || !formData) {
-    return <p className="text-center mt-10">Loading...</p>;
+  if (!formData) {
+    return <p className="text-center mt-12 text-gray-500">Loading...</p>;
   }
 
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
-      <h1 className="text-xl font-bold mb-4">Edit Submission</h1>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="max-w-3xl mx-auto mt-12 px-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-10">
         <div>
-          <label className="block mb-1 font-medium">Name</label>
-          <input
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            className="border p-2 w-full rounded"
-            required
-          />
+          <h1 className="text-3xl font-bold text-gray-800">Edit Submission</h1>
+          <p className="text-gray-500">Update the details for submission</p>
         </div>
-
-        <div>
-          <label className="block mb-1 font-medium">Email</label>
-          <input
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="border p-2 w-full rounded"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1 font-medium">Number</label>
-          <input
-            name="number"
-            value={formData.number}
-            onChange={handleChange}
-            className="border p-2 w-full rounded"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1 font-medium">Message</label>
-          <textarea
-            name="message"
-            value={formData.message}
-            onChange={handleChange}
-            rows={4}
-            className="border p-2 w-full rounded"
-            required
-          ></textarea>
-        </div>
-
-        <div>
-          <label className="block mb-1 font-medium">
-            Replace Document (optional)
-          </label>
-          <input type="file" name="document" className="mt-1" />
-        </div>
-
-        <p className="text-sm">
-          Current File:{" "}
-          <a
-            href={formData.document_url}
-            target="_blank"
-            className="text-blue-600 underline"
-          >
-            View Current Document
-          </a>
-        </p>
 
         <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded mt-4"
+          onClick={() => router.back()}
+          className="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 transition text-white px-4 py-2.5 rounded-lg shadow-md"
         >
-          {loading ? "Updating..." : "Update Submission"}
+          <FiArrowLeft />
+          Back
         </button>
-      </form>
+      </div>
+
+      {/* Alerts */}
+      {success && (
+        <div className="flex items-center gap-2 p-4 mb-4 text-green-700 bg-green-100 border border-green-300 rounded-lg">
+          <FiCheckCircle className="text-xl" />
+          <span>{success}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-2 p-4 mb-4 text-red-700 bg-red-100 border border-red-300 rounded-lg">
+          <FiXCircle className="text-xl" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Form */}
+      <div className="bg-white shadow-xl rounded-xl p-8 border border-gray-200">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Name */}
+          <div>
+            <label className="block mb-1 text-gray-600 font-medium flex items-center gap-2">
+              <FiUser /> Name
+            </label>
+            <input
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block mb-1 text-gray-600 font-medium flex items-center gap-2">
+              <FiMail /> Email
+            </label>
+            <input
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Number */}
+          <div>
+            <label className="block mb-1 text-gray-600 font-medium flex items-center gap-2">
+              <FiPhone /> Number
+            </label>
+            <input
+              name="number"
+              value={formData.number}
+              onChange={handleChange}
+              className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="block mb-1 text-gray-600 font-medium">
+              Message
+            </label>
+            <textarea
+              name="message"
+              value={formData.message}
+              onChange={handleChange}
+              rows={4}
+              className="border rounded-lg p-3 w-full focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Document */}
+          <div>
+            <label className="block mb-2 text-gray-600 font-medium flex items-center gap-2">
+              <FiFilePlus /> Replace Document (optional)
+            </label>
+            <input type="file" name="document" className="block mt-1" />
+
+            <p className="text-sm mt-2">
+              Current File:{" "}
+              <a
+                href={formData.document_url ?? "#"}
+                target="_blank"
+                className="text-blue-600 underline"
+              >
+                View Document
+              </a>
+            </p>
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full flex items-center justify-center gap-2 text-white px-6 py-3 rounded-lg shadow-md transition ${
+              loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            <FiEdit2 />
+            {loading ? "Updating..." : "Update Submission"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

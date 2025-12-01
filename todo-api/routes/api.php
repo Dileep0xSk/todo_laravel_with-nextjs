@@ -9,3 +9,5 @@ Route::post('submissions', [SubmissionController::class, 'store']);
 Route::get('submissions', [SubmissionController::class, 'index']);
 Route::get('submissions/{id}', [SubmissionController::class, 'show']);
 Route::post('submissions/{id}', [SubmissionController::class, 'update']);
+Route::delete('submissions/{id}', [SubmissionController::class, 'destroy']);
+
